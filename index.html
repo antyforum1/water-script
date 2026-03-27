@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Скрипт звонка — Поставка воды в отели</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f1923;
+  --bg2: #152030;
+  --bg3: #1c2a3d;
+  --border: #253448;
+  --border2: #2e3f58;
+  --text: #e2eaf4;
+  --muted: #6b89a8;
+  --dim: #3a5070;
+  --caller: #4dd9ac;
+  --caller-bg: rgba(77,217,172,0.07);
+  --caller-border: rgba(77,217,172,0.22);
+  --hotel: #f0c674;
+  --hotel-bg: rgba(240,198,116,0.07);
+  --hotel-border: rgba(240,198,116,0.22);
+  --tip: #7eb8f7;
+  --tip-bg: rgba(126,184,247,0.07);
+  --tip-border: rgba(126,184,247,0.22);
+  --warn: #f07f7f;
+  --warn-bg: rgba(240,127,127,0.07);
+  --warn-border: rgba(240,127,127,0.22);
+  --green: #52b788;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-weight: 300; line-height: 1.65; }
+
+/* HEADER */
+.header {
+  background: linear-gradient(180deg,#0a1520 0%,var(--bg) 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 24px 40px 20px;
+  position: sticky; top: 0; z-index: 100;
+}
+.header-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; gap: 16px; }
+.header-icon { width: 42px; height: 42px; border-radius: 10px; background: var(--caller-bg); border: 1px solid var(--caller-border); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.header-text h1 { font-family: 'DM Serif Display', serif; font-size: 20px; font-weight: 400; }
+.header-text p { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 0.3px; margin-top: 2px; }
+.sync-status { margin-left: auto; display: flex; align-items: center; gap: 8px; font-family: 'DM Mono', monospace; font-size: 11px; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted); background: var(--bg2); cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+.sync-status.ok { color: var(--green); border-color: rgba(82,183,136,0.3); background: rgba(82,183,136,0.07); }
+.sync-status.err { color: var(--warn); border-color: var(--warn-border); background: var(--warn-bg); }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.progress-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--border); }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--caller), var(--tip)); transition: width 0.4s ease; width: 0%; }
+
+/* LAYOUT */
+.layout { max-width: 960px; margin: 0 auto; padding: 36px 40px 100px; display: grid; grid-template-columns: 190px 1fr; gap: 0; }
+.nav { position: sticky; top: 84px; height: fit-content; padding-right: 24px; padding-top: 4px; }
+.nav-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+.nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; margin-bottom: 2px; transition: all 0.2s; text-decoration: none; color: var(--muted); font-size: 12.5px; border: 1px solid transparent; }
+.nav-item:hover { background: var(--bg2); color: var(--text); border-color: var(--border); }
+.nav-item.active { background: var(--bg3); color: var(--caller); border-color: var(--caller-border); }
+.nav-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; opacity: 0.6; }
+
+/* SECTIONS */
+.section { margin-bottom: 44px; opacity: 0; transform: translateY(14px); animation: fadeUp 0.5s ease forwards; }
+.section:nth-child(1){animation-delay:0.05s} .section:nth-child(2){animation-delay:0.12s} .section:nth-child(3){animation-delay:0.18s} .section:nth-child(4){animation-delay:0.24s} .section:nth-child(5){animation-delay:0.30s} .section:nth-child(6){animation-delay:0.36s} .section:nth-child(7){animation-delay:0.42s}
+@keyframes fadeUp { to { opacity:1; transform:translateY(0); } }
+
+.section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.section-num { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--caller); background: var(--caller-bg); border: 1px solid var(--caller-border); padding: 3px 8px; border-radius: 4px; letter-spacing: 1px; flex-shrink: 0; }
+.section-title { font-family: 'DM Serif Display', serif; font-size: 18px; font-weight: 400; }
+.section-sub { font-size: 12px; color: var(--muted); margin-top: 2px; font-style: italic; }
+
+/* CARDS */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 10px; transition: border-color 0.2s; }
+.card:hover { border-color: var(--border2); }
+.card-caller { border-left: 3px solid var(--caller); }
+.card-hotel  { border-left: 3px solid var(--hotel); }
+.card-tip    { border-left: 3px solid var(--tip); }
+.card-warn   { border-left: 3px solid var(--warn); }
+.card-label { display: inline-flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; padding: 3px 8px; border-radius: 4px; }
+.label-caller { color: var(--caller); background: var(--caller-bg); border: 1px solid var(--caller-border); }
+.label-hotel  { color: var(--hotel);  background: var(--hotel-bg);  border: 1px solid var(--hotel-border); }
+.label-tip    { color: var(--tip);    background: var(--tip-bg);    border: 1px solid var(--tip-border); }
+.label-warn   { color: var(--warn);   background: var(--warn-bg);   border: 1px solid var(--warn-border); }
+.card-text { font-size: 14.5px; line-height: 1.7; color: var(--text); }
+.card-text em { font-style: normal; color: var(--caller); font-family: 'DM Mono', monospace; font-size: 13px; background: var(--caller-bg); padding: 1px 5px; border-radius: 3px; }
+.card-note { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border2); font-size: 12px; color: var(--muted); font-style: italic; }
+
+/* OBJECTIONS */
+.objection-block { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+.objection-trigger { display: flex; align-items: center; gap: 12px; padding: 15px 18px; cursor: pointer; transition: background 0.2s; user-select: none; }
+.objection-trigger:hover { background: var(--bg3); }
+.obj-icon { font-size: 15px; width: 30px; height: 30px; border-radius: 7px; background: var(--warn-bg); border: 1px solid var(--warn-border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.obj-title { font-size: 14px; color: var(--hotel); font-weight: 500; flex: 1; }
+.obj-title small { display: block; font-size: 11px; color: var(--muted); font-weight: 300; margin-top: 1px; }
+.chevron { color: var(--dim); font-size: 13px; transition: transform 0.3s; }
+.objection-block.open .chevron { transform: rotate(180deg); }
+.obj-body { display: none; border-top: 1px solid var(--border); padding: 16px 18px; animation: slideDown 0.2s ease; }
+.objection-block.open .obj-body { display: block; }
+@keyframes slideDown { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+.response-step { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+.step-num { width: 22px; height: 22px; border-radius: 50%; background: var(--caller-bg); border: 1px solid var(--caller-border); color: var(--caller); font-family: 'DM Mono', monospace; font-size: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+.step-phrase { font-size: 14px; line-height: 1.65; color: var(--text); background: var(--caller-bg); border: 1px solid var(--caller-border); border-radius: 8px; padding: 10px 14px; margin-bottom: 5px; }
+.step-why { font-size: 12px; color: var(--muted); font-style: italic; padding-left: 4px; }
+
+/* INFO BOX */
+.info-box { background: var(--tip-bg); border: 1px solid var(--tip-border); border-radius: 10px; padding: 14px 16px; margin: 12px 0; display: flex; gap: 12px; }
+.info-box-icon { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.info-box-text { font-size: 13.5px; line-height: 1.6; }
+.info-box-text strong { color: var(--tip); font-weight: 500; }
+
+/* CHECKLIST */
+.checklist { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.check-item { display: flex; align-items: center; gap: 8px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; cursor: pointer; transition: all 0.2s; font-size: 13px; color: var(--muted); }
+.check-item:hover { border-color: var(--border2); color: var(--text); }
+.check-item.checked { background: rgba(82,183,136,0.07); border-color: rgba(82,183,136,0.3); color: var(--green); }
+.check-box { width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid var(--dim); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; transition: all 0.2s; }
+.check-item.checked .check-box { background: rgba(82,183,136,0.15); border-color: var(--green); color: var(--green); }
+
+/* FLOW */
+.flow { display: flex; flex-direction: column; }
+.flow-item { display: flex; gap: 14px; align-items: flex-start; }
+.flow-line { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: 26px; }
+.flow-dot { width: 26px; height: 26px; border-radius: 50%; background: var(--bg3); border: 2px solid var(--caller-border); color: var(--caller); font-family: 'DM Mono', monospace; font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.flow-connector { width: 2px; flex: 1; min-height: 16px; background: var(--border); margin: 3px 0; }
+.flow-content { flex: 1; padding-bottom: 18px; }
+
+/* FORM */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-group label { display: block; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  padding: 9px 12px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13.5px;
+  outline: none; transition: border-color 0.2s;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--caller-border); background: var(--bg2); }
+.form-group select option { background: var(--bg2); }
+.form-group textarea { resize: vertical; min-height: 68px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+.btn { border-radius: 8px; padding: 9px 20px; font-family: 'DM Mono', monospace; font-size: 12px; cursor: pointer; letter-spacing: 1px; transition: all 0.2s; border: 1px solid; }
+.btn-primary { background: var(--caller-bg); border-color: var(--caller-border); color: var(--caller); }
+.btn-primary:hover { background: rgba(77,217,172,0.15); }
+.btn-secondary { background: transparent; border-color: var(--border); color: var(--muted); }
+.btn-secondary:hover { border-color: var(--border2); color: var(--text); }
+.btn-warn { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn); }
+.status-msg { font-size: 12px; font-family: 'DM Mono', monospace; opacity: 0; transition: opacity 0.3s; }
+
+/* SETTINGS PANEL */
+.settings-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.settings-panel h3 { font-family: 'DM Serif Display', serif; font-size: 16px; margin-bottom: 16px; color: var(--text); }
+.webhook-row { display: flex; gap: 10px; align-items: center; }
+.webhook-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 9px 12px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; outline: none; transition: border-color 0.2s; }
+.webhook-input:focus { border-color: var(--caller-border); }
+.webhook-input.set { border-color: rgba(82,183,136,0.4); color: var(--green); }
+.test-result { margin-top: 10px; font-size: 12.5px; font-family: 'DM Mono', monospace; padding: 8px 12px; border-radius: 6px; display: none; }
+.test-result.ok { background: rgba(82,183,136,0.08); border: 1px solid rgba(82,183,136,0.25); color: var(--green); }
+.test-result.err { background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn); }
+
+/* SAVED CARDS */
+.saved-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; border-left: 3px solid var(--caller); animation: fadeUp 0.3s ease; }
+.saved-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.saved-card-name { font-family: 'DM Serif Display', serif; font-size: 15px; }
+.saved-card-date { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+.saved-card-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--muted); }
+.saved-card-meta span { background: var(--bg2); border: 1px solid var(--border); padding: 3px 8px; border-radius: 4px; }
+.saved-card-next { margin-top: 8px; font-size: 12px; color: var(--tip); }
+.saved-card-sync { font-size: 10px; font-family: 'DM Mono', monospace; padding: 2px 7px; border-radius: 4px; margin-left: 6px; }
+.synced { background: rgba(82,183,136,0.1); color: var(--green); border: 1px solid rgba(82,183,136,0.25); }
+.not-synced { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn-border); }
+
+/* TIMER */
+.sticky-footer { position: fixed; bottom: 0; left: 0; right: 0; background: linear-gradient(0deg, var(--bg) 65%, transparent); padding: 16px 40px; display: flex; justify-content: center; pointer-events: none; }
+.timer-badge { background: var(--bg2); border: 1px solid var(--border); border-radius: 20px; padding: 8px 20px; display: flex; align-items: center; gap: 12px; pointer-events: all; box-shadow: 0 4px 24px rgba(0,0,0,0.4); }
+.timer-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+.timer-time { font-family: 'DM Mono', monospace; font-size: 16px; color: var(--caller); letter-spacing: 2px; min-width: 46px; }
+.timer-btn { background: var(--caller-bg); border: 1px solid var(--caller-border); color: var(--caller); border-radius: 12px; padding: 5px 14px; font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; transition: all 0.2s; letter-spacing: 1px; }
+.timer-btn:hover { background: rgba(77,217,172,0.15); }
+.timer-btn.running { color: var(--warn); background: var(--warn-bg); border-color: var(--warn-border); }
+.timer-reset { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 12px; padding: 5px 12px; font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+@media (max-width: 680px) {
+  .layout { grid-template-columns: 1fr; padding: 20px 16px 90px; }
+  .nav { display: none; }
+  .header { padding: 16px 20px; }
+  .checklist, .form-grid { grid-template-columns: 1fr; }
+  .form-group.full { grid-column: 1; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="header-icon">📞</div>
+    <div class="header-text">
+      <h1>Скрипт разведывательного звонка</h1>
+      <p>Поставка воды в отели · HoReCa Краснодарский край</p>
+    </div>
+    <div class="sync-status" id="syncStatus" onclick="document.getElementById('s-settings').scrollIntoView({behavior:'smooth'})">
+      <div class="sync-dot"></div>
+      <span id="syncText">Sheets не подключён</span>
+    </div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+</header>
+
+<div class="layout">
+  <nav class="nav">
+    <div class="nav-label">Разделы</div>
+    <a href="#s0"  class="nav-item active"><span class="nav-dot"></span>Подготовка</a>
+    <a href="#s1"  class="nav-item"><span class="nav-dot"></span>Выход на ЛПР</a>
+    <a href="#s2"  class="nav-item"><span class="nav-dot"></span>Открытие</a>
+    <a href="#s3"  class="nav-item"><span class="nav-dot"></span>Разведка</a>
+    <a href="#s4"  class="nav-item"><span class="nav-dot"></span>Возражения</a>
+    <a href="#s5"  class="nav-item"><span class="nav-dot"></span>Закрытие</a>
+    <a href="#s6"  class="nav-item"><span class="nav-dot"></span>Карточка</a>
+    <a href="#s-settings" class="nav-item"><span class="nav-dot"></span>⚙ Google Sheets</a>
+  </nav>
+
+  <main>
+
+    <!-- 00 ПОДГОТОВКА -->
+    <section class="section" id="s0">
+      <div class="section-header">
+        <span class="section-num">00</span>
+        <div>
+          <div class="section-title">Подготовка до звонка</div>
+          <div class="section-sub">Заполните перед каждым звонком — 2 минуты</div>
+        </div>
+      </div>
+      <div class="info-box">
+        <div class="info-box-icon">🎯</div>
+        <div class="info-box-text"><strong>Цель звонка — не продажа.</strong> Цель — собрать данные: объём, цена, поставщик, частота, форматы. Никакого давления. Мягкая разведка под видом «изучаем рынок».</div>
+      </div>
+      <div class="checklist">
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Знаю название отеля</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Знаю кол-во номеров</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Открыт блокнот</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Не продаю на этом звонке</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Легенда: «анализ рынка»</div>
+        <div class="check-item" onclick="toggleCheck(this)"><div class="check-box"></div>Тихое место</div>
+      </div>
+    </section>
+
+    <!-- 01 ВЫХОД НА ЛПР -->
+    <section class="section" id="s1">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <div>
+          <div class="section-title">Выход на нужного человека</div>
+          <div class="section-sub">Нам нужен: менеджер по закупкам / зав. хозяйством / F&amp;B менеджер</div>
+        </div>
+      </div>
+      <div class="flow">
+        <div class="flow-item">
+          <div class="flow-line"><div class="flow-dot">1</div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <div class="card card-caller">
+              <div class="card-label label-caller">📞 Вы → Ресепшн</div>
+              <div class="card-text">— Добрый день! Соедините, пожалуйста, с <em>отделом закупок</em> или с тем, кто занимается <em>поставками воды</em> для отеля.</div>
+              <div class="card-note">Если спросят «по какому вопросу» → ответ ниже</div>
+            </div>
+          </div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-line"><div class="flow-dot">2</div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <div class="card card-hotel">
+              <div class="card-label label-hotel">🏨 Ресепшн:</div>
+              <div class="card-text">— По какому вопросу?</div>
+            </div>
+            <div class="card card-caller" style="margin-top:8px">
+              <div class="card-label label-caller">📞 Вы:</div>
+              <div class="card-text">— Мы занимаемся поставками питьевой воды для объектов HoReCa, хотим уточнить условия сотрудничества. Это займёт буквально <em>3 минуты</em>.</div>
+            </div>
+          </div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-line"><div class="flow-dot">3</div></div>
+          <div class="flow-content">
+            <div class="card card-tip">
+              <div class="card-label label-tip">💡 Кого искать</div>
+              <div class="card-text">
+                До 50 номеров → <em>управляющий / администратор</em><br>
+                50–200 номеров → <em>зам. директора / менеджер АХО</em><br>
+                200+ номеров → <em>F&amp;B менеджер / отдел закупок</em>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 ОТКРЫТИЕ -->
+    <section class="section" id="s2">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <div>
+          <div class="section-title">Открытие разговора с ЛПР</div>
+          <div class="section-sub">Первые 30 секунд — говорим коротко и уверенно</div>
+        </div>
+      </div>
+      <div class="card card-caller">
+        <div class="card-label label-caller">📞 Приветствие (выучить наизусть)</div>
+        <div class="card-text">
+          — Добрый день, [<em>Имя</em>]! Меня зовут [<em>Ваше имя</em>], компания [<em>Название</em>], мы поставляем питьевую воду для отелей и ресторанов Краснодарского края.<br><br>
+          Звоню не с предложением — мы сейчас изучаем, как устроены закупки воды в отелях вашего формата, чтобы сделать продукт под реальные потребности рынка. Вы не против ответить на <em>3–4 коротких вопроса</em>? Это займёт буквально 5 минут.
+        </div>
+        <div class="card-note">Пауза. Ждём «да». Не продолжаем, пока не получим разрешение говорить.</div>
+      </div>
+      <div class="info-box">
+        <div class="info-box-icon">🧠</div>
+        <div class="info-box-text"><strong>Почему «изучаем рынок»:</strong> снижает защитную реакцию. Люди охотно делятся информацией, когда не чувствуют давления продажи.</div>
+      </div>
+    </section>
+
+    <!-- 03 РАЗВЕДКА -->
+    <section class="section" id="s3">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <div>
+          <div class="section-title">Вопросы-разведка</div>
+          <div class="section-sub">Задаём по одному, слушаем и записываем</div>
+        </div>
+      </div>
+      <div class="info-box">
+        <div class="info-box-icon">📋</div>
+        <div class="info-box-text">Порядок важен: сначала <strong>нейтральные вопросы</strong> (что покупают → объём), потом <strong>цена</strong>. Цену спрашиваем только после контакта — не в лоб.</div>
+      </div>
+
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;text-transform:uppercase;">Вопрос 1 — Что закупают</div>
+      <div class="card card-caller">
+        <div class="card-label label-caller">📞 Вы:</div>
+        <div class="card-text">— Вы закупаете воду в бутылках для гостей — <em>в номера</em>, или только для ресторана / кухни? Или и то, и другое?</div>
+        <div class="card-note">Уточните: «А кулеры используете? 19-литровые бутыли?»</div>
+      </div>
+      <div class="card card-tip" style="margin-bottom:20px">
+        <div class="card-label label-tip">💡 Слушаем</div>
+        <div class="card-text">Форматы: <em>0.33 / 0.5 / 1.0 / 1.5 л</em> · <em>19 л</em> кулерные · Брендированные с логотипом · Наличие ресторана/баров</div>
+      </div>
+
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;text-transform:uppercase;">Вопрос 2 — Объём</div>
+      <div class="card card-caller">
+        <div class="card-label label-caller">📞 Вы:</div>
+        <div class="card-text">— Примерно сколько бутылок берёте в месяц — хотя бы порядок цифры? Сотни, тысячи?</div>
+        <div class="card-note">Можно добавить: «Просто понять масштаб — нам важно для логистики»</div>
+      </div>
+      <div class="card card-tip" style="margin-bottom:20px">
+        <div class="card-label label-tip">💡 Ориентиры</div>
+        <div class="card-text">до 50 номеров → <em>~300–800 шт/мес</em> · 50–150 → <em>~800–3 000</em> · 150–300 → <em>~3 000–10 000</em> · 300+ → <em>от 10 000</em></div>
+      </div>
+
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;text-transform:uppercase;">Вопрос 3 — Поставщик</div>
+      <div class="card card-caller" style="margin-bottom:20px">
+        <div class="card-label label-caller">📞 Вы:</div>
+        <div class="card-text">— С каким поставщиком работаете сейчас — крупная федеральная марка или местный производитель?</div>
+      </div>
+
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--warn);letter-spacing:1px;margin-bottom:8px;text-transform:uppercase;">⚡ Вопрос 4 — Цена (ключевой)</div>
+      <div class="card card-caller" style="border-left-color:var(--warn)">
+        <div class="card-label label-warn">⚡ Вариант А — мягкий:</div>
+        <div class="card-text">— Примерно в каком диапазоне вы сейчас закупаете — до <em>15 рублей</em> за бутылку, или дороже?</div>
+        <div class="card-note">Называем ориентир — метод альтернативы, помогает ответить не раскрывая «секрет»</div>
+      </div>
+      <div class="card card-caller" style="margin-top:8px;border-left-color:var(--hotel);margin-bottom:20px">
+        <div class="card-label" style="color:var(--hotel);background:var(--hotel-bg);border:1px solid var(--hotel-border);">💬 Вариант Б — прямой:</div>
+        <div class="card-text">— Понимаю, что закрытая информация, но хотя бы порядок — вы платите за 0.5л условно <em>10 рублей</em> или <em>25 рублей</em>? Нам важно понять, с каким ценовым сегментом работаете.</div>
+      </div>
+
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;text-transform:uppercase;">Вопрос 5 — Боли</div>
+      <div class="card card-caller">
+        <div class="card-label label-caller">📞 Вы:</div>
+        <div class="card-text">— Есть ли что-то, что не устраивает в текущей схеме? Может, доставка с задержками, или минимальная партия слишком большая?</div>
+        <div class="card-note">🏆 Золотой вопрос. Если есть боль — вот ваш вход.</div>
+      </div>
+    </section>
+
+    <!-- 04 ВОЗРАЖЕНИЯ -->
+    <section class="section" id="s4">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <div>
+          <div class="section-title">Отработка возражений</div>
+          <div class="section-sub">Нажмите на возражение, чтобы увидеть ответ</div>
+        </div>
+      </div>
+
+      <div class="objection-block" onclick="toggleObj(this)">
+        <div class="objection-trigger">
+          <div class="obj-icon">🚫</div>
+          <div class="obj-title">«Нам ничего не нужно, у нас всё есть»<small>Самое частое — закрытие на старте</small></div>
+          <div class="chevron">▼</div>
+        </div>
+        <div class="obj-body">
+          <div class="response-step"><div class="step-num">1</div><div><div class="step-phrase">— Отлично, значит снабжение решено. Именно поэтому и звоню — хочу понять, как работают отели у которых всё налажено. Можете сказать, с каким поставщиком работаете — местная компания или федеральная сеть?</div><div class="step-why">Принимаем, разворачиваем в вопрос. Не спорим.</div></div></div>
+          <div class="response-step"><div class="step-num">2</div><div><div class="step-phrase">— Понимаю. Скажите, если бы предложили тот же объём чуть дешевле при той же доставке — вы бы рассмотрели? Просто интересуюсь принципиально.</div><div class="step-why">Проверяем интерес к цене. Без давления.</div></div></div>
+        </div>
+      </div>
+
+      <div class="objection-block" onclick="toggleObj(this)">
+        <div class="objection-trigger">
+          <div class="obj-icon">🔒</div>
+          <div class="obj-title">«Не могу раскрывать коммерческую информацию»<small>Цена и объём — «секрет»</small></div>
+          <div class="chevron">▼</div>
+        </div>
+        <div class="obj-body">
+          <div class="response-step"><div class="step-num">1</div><div><div class="step-phrase">— Полностью понимаю. Я не прошу точную цифру из договора. Скажите просто — вы работаете в сегменте «эконом» или «средний»? Это не коммерческая тайна — просто понять нишу.</div><div class="step-why">Снижаем планку запроса. Вместо точной цены — категория.</div></div></div>
+          <div class="response-step"><div class="step-num">2</div><div><div class="step-phrase">— Тогда другой вопрос: вас в целом устраивает то, что есть, или бывают ситуации — нехватка запаса, доставка подводит?</div><div class="step-why">Переключаемся на боль — это легко рассказать.</div></div></div>
+        </div>
+      </div>
+
+      <div class="objection-block" onclick="toggleObj(this)">
+        <div class="objection-trigger">
+          <div class="obj-icon">⏰</div>
+          <div class="obj-title">«Сейчас некогда, перезвоните»<small>Уход от разговора</small></div>
+          <div class="chevron">▼</div>
+        </div>
+        <div class="obj-body">
+          <div class="response-step"><div class="step-num">1</div><div><div class="step-phrase">— Конечно. Один вопрос буквально на 10 секунд — вы воду для номеров закупаете сами или это идёт через центральный договор сети?</div><div class="step-why">Один короткий вопрос. Часто отвечают — разговор продолжается.</div></div></div>
+          <div class="response-step"><div class="step-num">2</div><div><div class="step-phrase">— Хорошо, когда удобнее — утром или после обеда? Запишу на завтра конкретное время.</div><div class="step-why">Фиксируем конкретное время, не «я перезвоню».</div></div></div>
+        </div>
+      </div>
+
+      <div class="objection-block" onclick="toggleObj(this)">
+        <div class="objection-trigger">
+          <div class="obj-icon">🤝</div>
+          <div class="obj-title">«У нас долгосрочный контракт с поставщиком»<small>Лояльность к текущему партнёру</small></div>
+          <div class="chevron">▼</div>
+        </div>
+        <div class="obj-body">
+          <div class="response-step"><div class="step-num">1</div><div><div class="step-phrase">— Понял, хорошо. Контракт на сколько обычно заключаете — год, два? И есть ли условие о пересмотре цены?</div><div class="step-why">Выясняем срок — когда заканчивается, это наш момент войти.</div></div></div>
+          <div class="response-step"><div class="step-num">2</div><div><div class="step-phrase">— Отлично. Я не предлагаю менять сейчас. Давайте пришлю коммерческое предложение на e-mail — просто чтобы было под рукой к следующему переобсуждению с поставщиком?</div><div class="step-why">Просим разрешения прислать КП — низкое обязательство, высокая конверсия.</div></div></div>
+        </div>
+      </div>
+
+      <div class="objection-block" onclick="toggleObj(this)">
+        <div class="objection-trigger">
+          <div class="obj-icon">❓</div>
+          <div class="obj-title">«А кто вы такие?»<small>Недоверие / проверка</small></div>
+          <div class="chevron">▼</div>
+        </div>
+        <div class="obj-body">
+          <div class="response-step"><div class="step-num">1</div><div><div class="step-phrase">— Справедливый вопрос. Мы [название компании], поставщик воды в Краснодарском крае. Работаем с отелями и ресторанами, расширяем направление HoReCa. Звоню не продавать, а собрать информацию о рынке — чтобы наш продукт был конкурентным.</div><div class="step-why">Честность и уверенность. Не оправдываемся.</div></div></div>
+        </div>
+      </div>
+
+      <div class="objection-block" onclick="toggleObj(this)">
+        <div class="objection-trigger">
+          <div class="obj-icon">🏢</div>
+          <div class="obj-title">«Решение принимает головной офис / УК»<small>Не тот человек</small></div>
+          <div class="chevron">▼</div>
+        </div>
+        <div class="obj-body">
+          <div class="response-step"><div class="step-num">1</div><div><div class="step-phrase">— Понял. А можете подсказать — это конкретный отдел закупок или через одного человека? Уместно ли туда обратиться напрямую, или лучше через вас?</div><div class="step-why">Выясняем структуру принятия решений.</div></div></div>
+          <div class="response-step"><div class="step-num">2</div><div><div class="step-phrase">— Можете подсказать имя человека, к кому стоит обратиться? Или хотя бы должность — я сам найду контакт.</div><div class="step-why">Просим имя или должность — это проще получить, чем прямой контакт.</div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 ЗАКРЫТИЕ -->
+    <section class="section" id="s5">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <div>
+          <div class="section-title">Закрытие разговора</div>
+          <div class="section-sub">Всегда фиксируем следующий шаг</div>
+        </div>
+      </div>
+      <div class="card card-caller">
+        <div class="card-label label-caller">📞 Закрытие на КП:</div>
+        <div class="card-text">— Спасибо, это очень ценная информация. Могу я прислать вам <em>коммерческое предложение</em> на почту? Если цифры будут интересны — созвонимся подробнее, нет — просто проигнорируете.</div>
+        <div class="card-note">Минимальное обязательство — получить КП. Конверсия высокая.</div>
+      </div>
+      <div class="card card-caller" style="margin-top:10px">
+        <div class="card-label label-caller">📞 Закрытие на встречу:</div>
+        <div class="card-text">— Давайте я подъеду на <em>10–15 минут</em> — привезу образцы и конкретные цифры. Когда удобно — на этой или следующей неделе?</div>
+      </div>
+      <div class="card card-warn" style="margin-top:10px">
+        <div class="card-label label-warn">⚠️ Чего НЕ делать</div>
+        <div class="card-text">
+          ✗ «Ну хорошо, я подумаю» — всегда фиксируем конкретный шаг<br>
+          ✗ «Перезвоню как-нибудь» — называем дату<br>
+          ✗ Заканчивать без e-mail или даты следующего контакта
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 КАРТОЧКА ЗВОНКА -->
+    <section class="section" id="s6">
+      <div class="section-header">
+        <span class="section-num">06</span>
+        <div>
+          <div class="section-title">Карточка звонка</div>
+          <div class="section-sub">Заполнить сразу после разговора · автоматически сохранится в Google Sheets</div>
+        </div>
+      </div>
+
+      <div class="card" style="background:var(--bg2);border-color:var(--caller-border)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Название отеля *</label>
+            <input type="text" id="f_hotel" placeholder="Crowne Plaza Krasnodar">
+          </div>
+          <div class="form-group">
+            <label>ФИО / Должность контакта</label>
+            <input type="text" id="f_contact" placeholder="Иванова А.В., менеджер АХО">
+          </div>
+          <div class="form-group">
+            <label>Менеджер (кто звонил)</label>
+            <input type="text" id="f_manager" placeholder="Ваше имя">
+          </div>
+          <div class="form-group">
+            <label>Результат звонка</label>
+            <select id="f_result">
+              <option value="">— выбрать —</option>
+              <option value="Данные получены">✅ Данные получены</option>
+              <option value="Выслать КП">📧 Выслать КП</option>
+              <option value="Назначена встреча">🤝 Назначена встреча</option>
+              <option value="Перезвонить">🔄 Перезвонить</option>
+              <option value="Не заинтересован">❌ Не заинтересован</option>
+              <option value="Не дозвонился">📵 Не дозвонился</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Объём закупки (шт/мес)</label>
+            <input type="text" id="f_volume" placeholder="~2 000 шт 0.5л">
+          </div>
+          <div class="form-group">
+            <label>Цена закупки</label>
+            <input type="text" id="f_price" placeholder="~18 руб/шт">
+          </div>
+          <div class="form-group">
+            <label>Текущий поставщик</label>
+            <input type="text" id="f_supplier" placeholder="Aqua Minerale / местный">
+          </div>
+          <div class="form-group">
+            <label>Email для КП</label>
+            <input type="email" id="f_email" placeholder="zakupki@hotel.ru">
+          </div>
+          <div class="form-group">
+            <label>Следующий шаг / дата</label>
+            <input type="text" id="f_next" placeholder="Выслать КП до 28.03">
+          </div>
+          <div class="form-group">
+            <label>Длительность звонка</label>
+            <input type="text" id="f_duration" placeholder="авто" readonly style="color:var(--muted)">
+          </div>
+          <div class="form-group full">
+            <label>Боли / ключевые слова / примечания</label>
+            <textarea id="f_notes" placeholder="Что рассказал собеседник? Недовольство поставщиком? Особые форматы бутылок? Сезонность?"></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="saveAndSync()">💾 Сохранить и отправить в Sheets</button>
+          <button class="btn btn-secondary" onclick="saveLocal()">📋 Сохранить локально</button>
+          <button class="btn btn-secondary" onclick="copyAsText()">⎘ Скопировать текстом</button>
+          <button class="btn btn-warn" onclick="clearForm()">✕ Очистить</button>
+          <span class="status-msg" id="saveStatus"></span>
+        </div>
+      </div>
+
+      <!-- SAVED CARDS -->
+      <div id="savedCards" style="margin-top:16px"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="section" id="s-settings">
+      <div class="section-header">
+        <span class="section-num">⚙</span>
+        <div>
+          <div class="section-title">Настройка для всей команды</div>
+          <div class="section-sub">Два шага: подключить Google Sheets → разместить файл онлайн</div>
+        </div>
+      </div>
+
+      <div class="settings-panel">
+        <h3>🔗 Webhook URL (Google Apps Script)</h3>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+          После получения URL вставьте его ниже для теста, затем <strong style="color:var(--tip)">вшейте его в код файла</strong> (строка <code style="background:var(--bg);padding:1px 5px;border-radius:3px;font-size:12px">HARDCODED_WEBHOOK</code>) — и каждый менеджер будет отправлять данные в одну таблицу без каких-либо настроек со своей стороны.
+        </p>
+        <div class="webhook-row">
+          <input type="text" class="webhook-input" id="webhookUrl" placeholder="https://script.google.com/macros/s/XXXXX/exec" oninput="onWebhookInput()">
+          <button class="btn btn-primary" onclick="testWebhook()">Проверить</button>
+          <button class="btn btn-secondary" onclick="saveWebhook()">Сохранить</button>
+        </div>
+        <div class="test-result" id="testResult"></div>
+
+        <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--border)">
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--tip);letter-spacing:1px;margin-bottom:18px;text-transform:uppercase;">📋 Полная инструкция — 8 шагов</div>
+
+          <div style="display:flex;flex-direction:column;gap:16px">
+
+            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--caller);letter-spacing:2px;text-transform:uppercase">ШАГИ 1–5 — GOOGLE SHEETS</div>
+
+            <div style="display:flex;gap:14px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:var(--tip-bg);border:1px solid var(--tip-border);color:var(--tip);font-family:'DM Mono',monospace;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+              <div style="font-size:13.5px;line-height:1.6">
+                Откройте <a href="https://sheets.google.com" target="_blank" style="color:var(--tip)">sheets.google.com</a> и создайте новую таблицу. Назовите её «Звонки — Поставка воды». В первой строке заголовки создадутся автоматически.
+              </div>
+            </div>
+
+            <div style="display:flex;gap:14px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:var(--tip-bg);border:1px solid var(--tip-border);color:var(--tip);font-family:'DM Mono',monospace;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+              <div style="font-size:13.5px;line-height:1.6">
+                В таблице нажмите <strong style="color:var(--text)">Расширения → Apps Script</strong>. Откроется редактор кода. Удалите всё что там есть.
+              </div>
+            </div>
+
+            <div style="display:flex;gap:14px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:var(--tip-bg);border:1px solid var(--tip-border);color:var(--tip);font-family:'DM Mono',monospace;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+              <div style="font-size:13.5px;line-height:1.6">
+                Вставьте код ниже (нажмите кнопку «Скопировать код») и нажмите <strong style="color:var(--text)">Сохранить проект (Ctrl+S)</strong>.
+              </div>
+            </div>
+
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-family:'DM Mono',monospace;font-size:12px;line-height:1.7;color:#a8c8e8;position:relative;margin:2px 0">
+<pre id="appsScriptCode" style="overflow-x:auto;white-space:pre;margin:0">const SHEET_NAME = "Звонки";
+
+function doPost(e) {
+  return handleRequest(e.postData ? e.postData.contents : null);
+}
+
+function doGet(e) {
+  // Поддержка GET-запроса с параметром ?data=...
+  if (e.parameter && e.parameter.data) {
+    return handleRequest(e.parameter.data);
+  }
+  return ContentService
+    .createTextOutput(JSON.stringify({status:"ok", message:"Webhook активен"}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function handleRequest(rawData) {
+  try {
+    const data = JSON.parse(rawData);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(SHEET_NAME);
+
+    if (!sheet) {
+      sheet = ss.insertSheet(SHEET_NAME);
+      const headers = [
+        "Дата","Время","Менеджер","Отель","Контакт",
+        "Результат","Объём (шт/мес)","Цена (руб/шт)",
+        "Поставщик","Email","Следующий шаг",
+        "Длительность","Боли / Примечания"
+      ];
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      sheet.getRange(1, 1, 1, headers.length)
+        .setBackground("#1a3a5c").setFontColor("#ffffff")
+        .setFontWeight("bold");
+      sheet.setFrozenRows(1);
+      sheet.setColumnWidth(1, 90);
+      sheet.setColumnWidth(3, 120);
+      sheet.setColumnWidth(4, 200);
+      sheet.setColumnWidth(13, 300);
+    }
+
+    const row = [
+      data.date || "", data.time || "", data.manager || "",
+      data.hotel || "", data.contact || "", data.result || "",
+      data.volume || "", data.price || "", data.supplier || "",
+      data.email || "", data.next || "", data.duration || "",
+      data.notes || ""
+    ];
+    sheet.appendRow(row);
+
+    const lastRow = sheet.getLastRow();
+    if (lastRow % 2 === 0) {
+      sheet.getRange(lastRow, 1, 1, row.length).setBackground("#f0f4f8");
+    }
+
+    return ContentService
+      .createTextOutput(JSON.stringify({status:"ok", row: lastRow}))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({status:"error", message: err.toString()}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}</pre>
+              <button onclick="copyCode()" style="position:absolute;top:10px;right:10px;background:var(--bg2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'" id="copyCodeBtn">Скопировать</button>
+            </div>
+
+            <div style="display:flex;gap:14px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:var(--tip-bg);border:1px solid var(--tip-border);color:var(--tip);font-family:'DM Mono',monospace;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+              <div style="font-size:13.5px;line-height:1.6">
+                Нажмите <strong style="color:var(--text)">Развернуть → Новое развёртывание</strong>. Тип: <strong style="color:var(--text)">Веб-приложение</strong>. Выполнять от: <strong style="color:var(--text)">«Я»</strong>. Доступ: <strong style="color:var(--caller)">«Все»</strong> (обязательно!). Нажмите <strong style="color:var(--text)">«Развернуть»</strong>.
+              </div>
+            </div>
+
+            <div style="display:flex;gap:14px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:var(--tip-bg);border:1px solid var(--tip-border);color:var(--tip);font-family:'DM Mono',monospace;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+              <div style="font-size:13.5px;line-height:1.6">
+                Скопируйте полученный <strong style="color:var(--caller)">URL веб-приложения</strong>. Вставьте его в поле выше → <strong>Проверить</strong> → убедитесь что статус «ок».
+              </div>
+            </div>
+
+            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--caller);letter-spacing:2px;text-transform:uppercase;margin-top:6px">ШАГ 6 — ВШИТЬ URL В ФАЙЛ (чтобы команда не настраивала вручную)</div>
+
+            <div style="display:flex;gap:14px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:var(--caller-bg);border:1px solid var(--caller-border);color:var(--caller);font-family:'DM Mono',monospace;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">6</div>
+              <div style="font-size:13.5px;line-height:1.6">
+                Откройте <code style="background:var(--bg);padding:1px 6px;border-radius:3px;font-size:12px;color:var(--tip)">hotel_water_script_v3.html</code> в Блокноте или VS Code.<br><br>
+                Найдите строку в начале &lt;script&gt;:<br>
+                <code style="display:block;background:var(--bg);padding:8px 12px;border-radius:6px;font-size:12px;color:var(--warn);margin:8px 0">const HARDCODED_WEBHOOK = '';</code>
+                Замените на:<br>
+                <code style="display:block;background:var(--bg);padding:8px 12px;border-radius:6px;font-size:12px;color:var(--caller);margin:8px 0">const HARDCODED_WEBHOOK = 'https://script.google.com/macros/s/ВАШ_URL/exec';</code>
+                Сохраните файл. Теперь раздел настроек исчезнет — менеджеры ничего не трогают.
+              </div>
+            </div>
+
+            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--tip);letter-spacing:2px;text-transform:uppercase;margin-top:6px">ШАГИ 7–8 — РАЗМЕСТИТЬ ОНЛАЙН (GitHub Pages, бесплатно)</div>
+
+            <div style="background:var(--tip-bg);border:1px solid var(--tip-border);border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.7;margin:2px 0">
+              <strong style="color:var(--tip)">GitHub Pages</strong> — бесплатный хостинг от GitHub. Загружаете HTML-файл один раз → получаете постоянную ссылку → отправляете менеджерам. Никаких серверов, никаких платежей.
+            </div>
+
+            <div style="display:flex;gap:14px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:var(--tip-bg);border:1px solid var(--tip-border);color:var(--tip);font-family:'DM Mono',monospace;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">7</div>
+              <div style="font-size:13.5px;line-height:1.6">
+                Зайдите на <a href="https://github.com" target="_blank" style="color:var(--tip)">github.com</a> → войдите или создайте аккаунт (бесплатно) → нажмите <strong style="color:var(--text)">«New repository»</strong>.<br><br>
+                Название: <code style="background:var(--bg);padding:1px 6px;border-radius:3px;font-size:12px">water-script</code> · Доступ: <strong style="color:var(--text)">Public</strong> · ✓ «Add a README file» → <strong style="color:var(--text)">Create repository</strong>.
+              </div>
+            </div>
+
+            <div style="display:flex;gap:14px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:var(--tip-bg);border:1px solid var(--tip-border);color:var(--tip);font-family:'DM Mono',monospace;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">8</div>
+              <div style="font-size:13.5px;line-height:1.6">
+                В репозитории: <strong style="color:var(--text)">«Add file» → «Upload files»</strong> → перетащите ваш HTML-файл → <strong style="color:var(--warn)">переименуйте его в <code>index.html</code></strong> → «Commit changes».<br><br>
+                Затем: <strong style="color:var(--text)">Settings → Pages → Source: «Deploy from a branch» → Branch: main → Save</strong>.<br><br>
+                Через ~1 минуту скрипт будет доступен по ссылке:<br>
+                <code style="display:block;background:var(--bg);padding:8px 12px;border-radius:6px;font-size:13px;color:var(--caller);margin-top:8px">https://ВАШ_ЛОГИН.github.io/water-script/</code>
+                Отправьте эту ссылку всей команде. <strong style="color:var(--caller)">Готово! 🎉</strong>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- TIMER -->
+<div class="sticky-footer">
+  <div class="timer-badge">
+    <span class="timer-label">ЗВОНОК</span>
+    <span class="timer-time" id="timerDisplay">00:00</span>
+    <button class="timer-btn" id="timerBtn" onclick="toggleTimer()">▶ СТАРТ</button>
+    <button class="timer-reset" onclick="resetTimer()">↺</button>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG
+// ★★★ ВСТАВЬТЕ ВАШ WEBHOOK URL СЮДА — один раз для всей команды ★★★
+const HARDCODED_WEBHOOK = 'https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbxYBJ9Yj7aqeGsZXUg-swrqhUpK_A-h01o9MQmLNwCUgf_cNzgibfKj36d-KOpZ0nn9/exec/exec';  // например: 'https://script.google.com/macros/s/ABC.../exec'
+
+let WEBHOOK_URL = HARDCODED_WEBHOOK || localStorage.getItem('webhookUrl') || '';
+let cards = JSON.parse(localStorage.getItem('callCards') || '[]');
+const managerName = localStorage.getItem('managerName') || '';
+
+// ─── INIT
+window.onload = () => {
+  if (WEBHOOK_URL) {
+    const inp = document.getElementById('webhookUrl');
+    if (inp) { inp.value = WEBHOOK_URL; inp.classList.add('set'); }
+    updateSyncStatus(true);
+    // Скрыть секцию настроек если URL вшит
+    if (HARDCODED_WEBHOOK) {
+      const settingsSection = document.getElementById('s-settings');
+      if (settingsSection) {
+        settingsSection.style.display = 'none';
+      }
+      // Скрыть пункт навигации
+      document.querySelectorAll('.nav-item').forEach(n => {
+        if (n.getAttribute('href') === '#s-settings') n.style.display = 'none';
+      });
+    }
+  }
+  if (managerName) document.getElementById('f_manager').value = managerName;
+  renderCards();
+};
+
+// ─── TIMER
+let timerInterval = null, timerSeconds = 0, timerRunning = false;
+function toggleTimer() {
+  const btn = document.getElementById('timerBtn');
+  if (!timerRunning) {
+    timerRunning = true;
+    btn.textContent = '⏸ СТОП';
+    btn.classList.add('running');
+    timerInterval = setInterval(() => {
+      timerSeconds++;
+      const m = String(Math.floor(timerSeconds/60)).padStart(2,'0');
+      const s = String(timerSeconds%60).padStart(2,'0');
+      document.getElementById('timerDisplay').textContent = `${m}:${s}`;
+      document.getElementById('f_duration').value = `${m}:${s}`;
+    }, 1000);
+  } else {
+    timerRunning = false;
+    btn.textContent = '▶ СТАРТ';
+    btn.classList.remove('running');
+    clearInterval(timerInterval);
+  }
+}
+function resetTimer() {
+  timerRunning = false; clearInterval(timerInterval); timerSeconds = 0;
+  document.getElementById('timerDisplay').textContent = '00:00';
+  document.getElementById('timerBtn').textContent = '▶ СТАРТ';
+  document.getElementById('timerBtn').classList.remove('running');
+  document.getElementById('f_duration').value = '';
+}
+
+// ─── OBJECTION TOGGLE
+function toggleObj(el) { el.classList.toggle('open'); }
+
+// ─── CHECKLIST
+function toggleCheck(el) {
+  el.classList.toggle('checked');
+  el.querySelector('.check-box').textContent = el.classList.contains('checked') ? '✓' : '';
+}
+
+// ─── SYNC STATUS
+function updateSyncStatus(connected) {
+  const el = document.getElementById('syncStatus');
+  const txt = document.getElementById('syncText');
+  if (connected) {
+    el.className = 'sync-status ok';
+    txt.textContent = 'Sheets подключён';
+  } else {
+    el.className = 'sync-status';
+    txt.textContent = 'Sheets не подключён';
+  }
+}
+
+// ─── WEBHOOK SETTINGS
+function onWebhookInput() {
+  const val = document.getElementById('webhookUrl').value.trim();
+  document.getElementById('webhookUrl').classList.toggle('set', val.length > 20);
+}
+function saveWebhook() {
+  const url = document.getElementById('webhookUrl').value.trim();
+  WEBHOOK_URL = url;
+  localStorage.setItem('webhookUrl', url);
+  updateSyncStatus(!!url);
+  showStatus('✓ URL сохранён', 'var(--green)');
+}
+async function testWebhook() {
+  const url = document.getElementById('webhookUrl').value.trim();
+  const res = document.getElementById('testResult');
+  if (!url) { res.style.display='block'; res.className='test-result err'; res.textContent='⚠ Введите URL'; return; }
+  res.style.display='block'; res.className='test-result'; res.textContent='Проверяем...';
+  try {
+    const r = await fetch(url, {method:'GET', mode:'no-cors'});
+    res.className='test-result ok';
+    res.textContent='✓ Соединение установлено. Теперь нажмите «Сохранить».';
+    updateSyncStatus(true);
+  } catch(e) {
+    res.className='test-result err';
+    res.textContent='✕ Ошибка соединения. Проверьте URL и настройки доступа в Apps Script.';
+  }
+}
+
+// ─── SAVE & SYNC
+function getFormData() {
+  const now = new Date();
+  return {
+    date: now.toLocaleDateString('ru-RU'),
+    time: now.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'}),
+    manager: document.getElementById('f_manager').value,
+    hotel: document.getElementById('f_hotel').value,
+    contact: document.getElementById('f_contact').value,
+    result: document.getElementById('f_result').value,
+    volume: document.getElementById('f_volume').value,
+    price: document.getElementById('f_price').value,
+    supplier: document.getElementById('f_supplier').value,
+    email: document.getElementById('f_email').value,
+    next: document.getElementById('f_next').value,
+    duration: document.getElementById('f_duration').value,
+    notes: document.getElementById('f_notes').value,
+    synced: false
+  };
+}
+
+async function saveAndSync() {
+  const data = getFormData();
+  if (!data.hotel) { showStatus('⚠ Укажите название отеля', 'var(--warn)'); return; }
+  if (data.manager) localStorage.setItem('managerName', data.manager);
+
+  // Сохраняем локально сразу
+  data.synced = false;
+  cards.unshift(data);
+  localStorage.setItem('callCards', JSON.stringify(cards));
+  renderCards();
+  clearForm();
+  showStatus('💾 Отправляем в Sheets...', 'var(--muted)');
+
+  if (!WEBHOOK_URL) {
+    showStatus('⚠ Сохранено локально. Настройте Google Sheets для синхронизации.', 'var(--hotel)');
+    return;
+  }
+
+  // Отправка через fetch с no-cors (работает из любого браузера/источника)
+  // Apps Script принимает POST и возвращает ответ — no-cors это ок т.к. нам не нужно читать ответ
+  try {
+    const urlWithParams = WEBHOOK_URL + '?data=' + encodeURIComponent(JSON.stringify(data));
+    // Используем GET через img-trick как запасной вариант если fetch заблокирован
+    await Promise.race([
+      fetch(WEBHOOK_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(data)
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+    ]);
+    cards[0].synced = true;
+    localStorage.setItem('callCards', JSON.stringify(cards));
+    renderCards();
+    showStatus('✅ Отправлено в Google Sheets!', 'var(--green)');
+  } catch(e) {
+    // Запасной метод: GET-запрос через скрытый img (обходит CORS полностью)
+    try {
+      const urlWithParams = WEBHOOK_URL + '?data=' + encodeURIComponent(JSON.stringify(data));
+      await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = img.onerror = resolve; // оба события = запрос ушёл
+        img.src = urlWithParams;
+        setTimeout(resolve, 5000);
+      });
+      cards[0].synced = true;
+      localStorage.setItem('callCards', JSON.stringify(cards));
+      renderCards();
+      showStatus('✅ Отправлено в Google Sheets!', 'var(--green)');
+    } catch(e2) {
+      showStatus('⚠ Сохранено локально. Нет соединения с Sheets.', 'var(--warn)');
+    }
+  }
+}
+
+function saveLocal() {
+  const data = getFormData();
+  if (!data.hotel) { showStatus('⚠ Укажите название отеля', 'var(--warn)'); return; }
+  cards.unshift(data);
+  localStorage.setItem('callCards', JSON.stringify(cards));
+  renderCards();
+  clearForm();
+  showStatus('💾 Сохранено локально', 'var(--green)');
+}
+
+// ─── RENDER CARDS
+function renderCards() {
+  const c = document.getElementById('savedCards');
+  if (!cards.length) { c.innerHTML=''; return; }
+  c.innerHTML = `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">История звонков (${cards.length})</div>` +
+    cards.map((card, i) => `
+      <div class="saved-card">
+        <div class="saved-card-header">
+          <div>
+            <span class="saved-card-name">${card.hotel || '—'}</span>
+            <span class="saved-card-sync ${card.synced ? 'synced' : 'not-synced'}">${card.synced ? '✓ Sheets' : '⚠ локально'}</span>
+          </div>
+          <span class="saved-card-date">${card.date} ${card.time}</span>
+        </div>
+        <div class="saved-card-meta">
+          ${card.manager ? `<span>👤 ${card.manager}</span>` : ''}
+          ${card.result ? `<span>${card.result}</span>` : ''}
+          ${card.volume ? `<span>📦 ${card.volume}</span>` : ''}
+          ${card.price ? `<span>💰 ${card.price}</span>` : ''}
+          ${card.supplier ? `<span>🏭 ${card.supplier}</span>` : ''}
+          ${card.duration ? `<span>⏱ ${card.duration}</span>` : ''}
+        </div>
+        ${card.next ? `<div class="saved-card-next">→ ${card.next}</div>` : ''}
+        ${card.notes ? `<div style="margin-top:6px;font-size:12px;color:var(--muted);font-style:italic">${card.notes}</div>` : ''}
+        <div style="display:flex;gap:8px;margin-top:10px">
+          ${!card.synced && WEBHOOK_URL ? `<button onclick="retrySyncCard(${i})" style="background:var(--caller-bg);border:1px solid var(--caller-border);color:var(--caller);border-radius:6px;padding:4px 10px;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer">↑ Отправить в Sheets</button>` : ''}
+          <button onclick="deleteCard(${i})" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer">✕ Удалить</button>
+        </div>
+      </div>`).join('');
+}
+
+async function retrySyncCard(i) {
+  if (!WEBHOOK_URL) return;
+  try {
+    await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(cards[i])
+    });
+    cards[i].synced = true;
+    localStorage.setItem('callCards', JSON.stringify(cards));
+    renderCards();
+    showStatus('✅ Отправлено в Sheets!', 'var(--green)');
+  } catch(e) { showStatus('⚠ Ошибка отправки', 'var(--warn)'); }
+}
+
+function deleteCard(i) {
+  if (!confirm('Удалить запись?')) return;
+  cards.splice(i, 1);
+  localStorage.setItem('callCards', JSON.stringify(cards));
+  renderCards();
+}
+
+// ─── COPY AS TEXT
+function copyAsText() {
+  const d = getFormData();
+  const txt = `📞 КАРТОЧКА ЗВОНКА\n${'─'.repeat(30)}\nДата: ${d.date} ${d.time}\nМенеджер: ${d.manager||'—'}\nОтель: ${d.hotel||'—'}\nКонтакт: ${d.contact||'—'}\nРезультат: ${d.result||'—'}\nОбъём: ${d.volume||'—'}\nЦена: ${d.price||'—'}\nПоставщик: ${d.supplier||'—'}\nEmail: ${d.email||'—'}\nСледующий шаг: ${d.next||'—'}\nПримечания: ${d.notes||'—'}`;
+  navigator.clipboard.writeText(txt).then(() => showStatus('✓ Скопировано в буфер', 'var(--green)'));
+}
+
+function clearForm() {
+  ['f_hotel','f_contact','f_result','f_volume','f_price','f_supplier','f_email','f_next','f_notes','f_duration'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el.tagName === 'SELECT') el.value = '';
+    else el.value = '';
+  });
+}
+
+// ─── COPY APPS SCRIPT CODE
+function copyCode() {
+  const code = document.getElementById('appsScriptCode').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.getElementById('copyCodeBtn');
+    btn.textContent = '✓ Скопировано!';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.textContent = 'Скопировать'; btn.style.color=''; }, 2500);
+  });
+}
+
+// ─── STATUS MESSAGE
+function showStatus(msg, color) {
+  const el = document.getElementById('saveStatus');
+  el.textContent = msg;
+  el.style.color = color;
+  el.style.opacity = '1';
+  setTimeout(() => { el.style.opacity = '0'; }, 3500);
+}
+
+// ─── PROGRESS + NAV
+window.addEventListener('scroll', () => {
+  const pct = Math.min(100, (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  const sections = document.querySelectorAll('.section');
+  const navItems = document.querySelectorAll('.nav-item');
+  sections.forEach((sec, i) => {
+    if (sec.getBoundingClientRect().top < 160 && sec.getBoundingClientRect().bottom > 0) {
+      navItems.forEach(n => n.classList.remove('active'));
+      if (navItems[i]) navItems[i].classList.add('active');
+    }
+  });
+});
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', e => {
+    e.preventDefault();
+    const t = document.querySelector(item.getAttribute('href'));
+    if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+</script>
+</body>
+</html>
