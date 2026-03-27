@@ -760,7 +760,7 @@ function handleRequest(rawData) {
 <script>
 // ─── CONFIG
 // ★★★ ВСТАВЬТЕ ВАШ WEBHOOK URL СЮДА — один раз для всей команды ★★★
-const HARDCODED_WEBHOOK = 'https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbxYBJ9Yj7aqeGsZXUg-swrqhUpK_A-h01o9MQmLNwCUgf_cNzgibfKj36d-KOpZ0nn9/exec/exec';  // например: 'https://script.google.com/macros/s/ABC.../exec'
+const HARDCODED_WEBHOOK = 'https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbxYBJ9Yj7aqeGsZXUg-swrqhUpK_A-h01o9MQmLNwCUgf_cNzgibfKj36d-KOpZ0nn9/exec/exec';
 
 let WEBHOOK_URL = HARDCODED_WEBHOOK || localStorage.getItem('webhookUrl') || '';
 let cards = JSON.parse(localStorage.getItem('callCards') || '[]');
